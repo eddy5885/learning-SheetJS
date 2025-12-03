@@ -7,9 +7,8 @@ const outputFile = path.join(targetDir, './index.html');
 
 // 读取目标目录下的所有文件（排除index.html自身和点开头的隐藏文件）
 const files = fs.readdirSync(targetDir).filter(file => 
-    file !== 'index.html' && !file.startsWith('.')
+    file !== 'index.html' && !file.startsWith('.') && (file.endsWith('.html') || file.endsWith('.js'))
 );
-console.log(files);
 // 生成HTML内容
 const htmlContent = `<!DOCTYPE html>
 <html>
