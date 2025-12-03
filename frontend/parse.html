@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel URL 解析器</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 400;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4a90d9;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            background: #4a90d9;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #357abd;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .output {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 300px;
+            max-height: 70vh;
+            overflow: auto;
+        }
+
+        .output pre {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .status {
+            padding: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .status.error {
+            color: #d9534f;
+        }
+
+        .status.success {
+            color: #5cb85c;
+        }
+
+        .presets {
+            margin-bottom: 12px;
+        }
+
+        .presets-label {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .preset-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .preset-item {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #e8f4fd;
+            color: #4a90d9;
+            border: 1px solid #b8d4ed;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .preset-item:hover {
+            background: #4a90d9;
+            color: #fff;
+            border-color: #4a90d9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Excel URL 解析器</h1>
+        <div class="presets">
+            <div class="presets-label">快速选择：</div>
+            <div class="preset-list">
+                <span class="preset-item" data-url="https://file.sixue.work/1.xlsx">https://file.sixue.work/1.xlsx</span>
+                <span class="preset-item" data-url="https://file.sixue.work/2.xlsx">https://file.sixue.work/2.xlsx</span>
+                <span class="preset-item" data-url="https://file.sixue.work/3.xls">https://file.sixue.work/3.xls</span>
+            </div>
+        </div>
+        <div class="input-row">
+            <input type="text" id="urlInput" placeholder="输入 Excel 文件 URL（支持 .xls / .xlsx）"
+                value="">
+            <button id="parseBtn">解析</button>
+        </div>
+        <div class="status" id="status"></div>
+        <div class="output">
+            <pre id="output">解析结果将显示在这里...</pre>
+        </div>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('urlInput');
+        const parseBtn = document.getElementById('parseBtn');
+        const output = document.getElementById('output');
+        const status = document.getElementById('status');
+
+        parseBtn.onclick = async function () {
+            const url = urlInput.value.trim();
+            if (!url) {
+                status.textContent = '请输入 URL 地址';
+                status.className = 'status error';
+                return;
+            }
+
+            parseBtn.disabled = true;
+            status.textContent = '正在加载...';
+            status.className = 'status';
+            output.textContent = '';
+
+            try {
+                // 获取文件
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`HTTP 错误: ${res.status}`);
+                }
+                const arrayBuffer = await res.arrayBuffer();
+
+                // 解析 Excel
+                const workbook = XLSX.read(arrayBuffer);
+
+                // 转换所有 sheet 为 JSON
+                const sheets = workbook.SheetNames.map(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const data = XLSX.utils.sheet_to_json(worksheet, {
+                        header: 1,
+                        defval: null
+                    });
+                    return { sheetName, data };
+                });
+
+                const result = {
+                    sheetCount: workbook.SheetNames.length,
+                    sheets
+                };
+
+                output.textContent = JSON.stringify(result, null, 2);
+                status.textContent = `✓ 解析成功，共 ${result.sheetCount} 个工作表`;
+                status.className = 'status success';
+            } catch (e) {
+                output.textContent = '';
+                status.textContent = '✗ 解析失败：' + e.message;
+                status.className = 'status error';
+            } finally {
+                parseBtn.disabled = false;
+            }
+        };
+
+        // 回车键触发解析
+        urlInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                parseBtn.click();
+            }
+        });
+
+        // 点击备选项填入输入框
+        document.querySelectorAll('.preset-item').forEach(item => {
+            item.addEventListener('click', function () {
+                urlInput.value = this.dataset.url;
+                urlInput.focus();
+            });
+        });
+    </script>
+</body>
+
+</html>
+

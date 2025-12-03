@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SheetJS + x-spreadsheet Demo</title>
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <!-- x-spreadsheet -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/x-data-spreadsheet@1.1.9/dist/xspreadsheet.css">
+    <script src="https://cdn.jsdelivr.net/npm/x-data-spreadsheet@1.1.9/dist/xspreadsheet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .toolbar {
+            padding: 10px 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+            background: #f5f5f5;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 20px;
+            background: #ccc;
+            margin: 0 6px;
+        }
+
+        button {
+            padding: 6px 12px;
+            font-size: 13px;
+            background: #fff;
+            color: #333;
+            border: 1px solid #999;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #eee;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .drop-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.1);
+            border: 3px dashed #333;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .drop-zone.active {
+            display: flex;
+        }
+
+        .drop-zone-text {
+            font-size: 18px;
+            color: #333;
+            background: #fff;
+            padding: 20px 40px;
+            border: 1px solid #ccc;
+        }
+
+        #spreadsheet-container {
+            height: calc(100vh - 110px);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-size: 13px;
+            color: #333;
+        }
+
+        .input-group input {
+            padding: 5px 8px;
+            font-size: 13px;
+            border: 1px solid #999;
+            width: 100px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #333;
+        }
+
+        .status {
+            margin-left: auto;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>SheetJS + x-spreadsheet Demo</h1>
+        <p>拖拽 Excel 文件到页面，或点击按钮导入/导出</p>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <button id="importBtn">导入文件</button>
+            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv">
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+            <button id="loadUrlBtn">加载示例</button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+            <div class="input-group">
+                <label>文件名:</label>
+                <input type="text" id="fileName" value="导出数据">
+            </div>
+        </div>
+
+        <div class="toolbar-group">
+            <button id="exportXlsxBtn">导出 XLSX</button>
+            <button id="exportCsvBtn">导出 CSV</button>
+        </div>
+
+        <span class="status" id="status"></span>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-text">释放文件以导入</div>
+    </div>
+
+    <div id="spreadsheet-container"></div>
+
+    <script>
+        // 初始化 x-spreadsheet
+        const spreadsheet = x_spreadsheet('#spreadsheet-container', {
+            mode: 'edit',
+            showToolbar: true,
+            showGrid: true,
+            showContextmenu: true,
+            view: {
+                height: () => document.getElementById('spreadsheet-container').clientHeight,
+                width: () => document.getElementById('spreadsheet-container').clientWidth
+            },
+            row: {
+                len: 100,
+                height: 25
+            },
+            col: {
+                len: 26,
+                width: 100,
+                indexWidth: 60,
+                minWidth: 60
+            }
+        });
+
+        // 设置初始数据
+        spreadsheet.loadData([{
+            name: 'Sheet1',
+            rows: {
+                0: { cells: { 0: { text: '姓名' }, 1: { text: '年龄' }, 2: { text: '城市' }, 3: { text: '职业' } } },
+                1: { cells: { 0: { text: '张三' }, 1: { text: '28' }, 2: { text: '北京' }, 3: { text: '工程师' } } },
+                2: { cells: { 0: { text: '李四' }, 1: { text: '32' }, 2: { text: '上海' }, 3: { text: '设计师' } } },
+                3: { cells: { 0: { text: '王五' }, 1: { text: '25' }, 2: { text: '广州' }, 3: { text: '产品经理' } } }
+            }
+        }]);
+
+        const fileInput = document.getElementById('fileInput');
+        const importBtn = document.getElementById('importBtn');
+        const exportXlsxBtn = document.getElementById('exportXlsxBtn');
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const loadUrlBtn = document.getElementById('loadUrlBtn');
+        const fileNameInput = document.getElementById('fileName');
+        const dropZone = document.getElementById('dropZone');
+        const statusEl = document.getElementById('status');
+
+        function setStatus(text, isSuccess = false) {
+            statusEl.textContent = text;
+            statusEl.className = isSuccess ? 'status success' : 'status';
+        }
+
+        // ========== x-spreadsheet 与 SheetJS 转换函数 ==========
+
+        // 将 x-spreadsheet 数据转换为 SheetJS workbook
+        function xtos(sdata) {
+            const workbook = XLSX.utils.book_new();
+            sdata.forEach(function (xws) {
+                const ws = {};
+                const rowobj = xws.rows;
+                let minCoord = { r: 0, c: 0 }, maxCoord = { r: 0, c: 0 };
+
+                for (let ri = 0; ri < rowobj.len; ++ri) {
+                    const row = rowobj[ri];
+                    if (!row) continue;
+                    const cells = row.cells;
+                    for (let ci = 0; ci < Object.keys(cells).length; ++ci) {
+                        const cell = cells[ci];
+                        if (!cell || cell.text === undefined || cell.text === '') continue;
+                        const cellRef = XLSX.utils.encode_cell({ r: ri, c: parseInt(ci) });
+                        ws[cellRef] = { v: cell.text, t: 's' };
+                        if (ri > maxCoord.r) maxCoord.r = ri;
+                        if (parseInt(ci) > maxCoord.c) maxCoord.c = parseInt(ci);
+                    }
+                }
+
+                ws['!ref'] = XLSX.utils.encode_range(minCoord, maxCoord);
+                XLSX.utils.book_append_sheet(workbook, ws, xws.name);
+            });
+            return workbook;
+        }
+
+        // 将 SheetJS workbook 转换为 x-spreadsheet 数据
+        function stox(workbook) {
+            const result = [];
+            workbook.SheetNames.forEach(function (name) {
+                const ws = workbook.Sheets[name];
+                const data = { name: name, rows: {} };
+                let maxRow = 0;
+
+                if (ws['!ref']) {
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    maxRow = range.e.r + 1;
+                    for (let R = range.s.r; R <= range.e.r; ++R) {
+                        const row = { cells: {} };
+                        for (let C = range.s.c; C <= range.e.c; ++C) {
+                            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                            const cell = ws[cellRef];
+                            if (cell) {
+                                row.cells[C] = { text: cell.v !== undefined ? String(cell.v) : '' };
+                            }
+                        }
+                        data.rows[R] = row;
+                    }
+                }
+
+                data.rows.len = Math.max(100, maxRow);
+                result.push(data);
+            });
+            return result;
+        }
+
+        // ========== 导入功能 ==========
+
+        function processFile(file) {
+            setStatus('正在导入...');
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const xsData = stox(workbook);
+                    spreadsheet.loadData(xsData);
+                    setStatus(`已导入: ${file.name}`, true);
+                } catch (err) {
+                    setStatus('导入失败: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 点击导入按钮
+        importBtn.onclick = () => fileInput.click();
+
+        // 选择文件
+        fileInput.onchange = function (e) {
+            const file = e.target.files[0];
+            if (file) processFile(file);
+            fileInput.value = '';
+        };
+
+        // 加载示例 URL
+        loadUrlBtn.onclick = async function () {
+            const url = 'https://file.sixue.work/2.xlsx';
+            setStatus('正在加载示例...');
+            try {
+                const res = await fetch(url);
+                const arrayBuffer = await res.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer);
+                const xsData = stox(workbook);
+                spreadsheet.loadData(xsData);
+                setStatus('已加载示例文件', true);
+            } catch (err) {
+                setStatus('加载失败: ' + err.message);
+            }
+        };
+
+        // ========== 拖拽功能 ==========
+
+        document.addEventListener('dragenter', function (e) {
+            e.preventDefault();
+            dropZone.classList.add('active');
+        });
+
+        document.addEventListener('dragover', function (e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('dragleave', function (e) {
+            if (e.relatedTarget === null) {
+                dropZone.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file) processFile(file);
+        });
+
+        // ========== 导出功能 ==========
+
+        function getWorkbook() {
+            const data = spreadsheet.getData();
+            return xtos(data);
+        }
+
+        // 导出 XLSX
+        exportXlsxBtn.onclick = function () {
+            const fileName = fileNameInput.value.trim() || '导出数据';
+            const workbook = getWorkbook();
+            XLSX.writeFile(workbook, `${fileName}.xlsx`, { compression: true });
+            setStatus(`已导出: ${fileName}.xlsx`, true);
+        };
+
+        // 导出 CSV
+        exportCsvBtn.onclick = function () {
+            const fileName = fileNameInput.value.trim() || '导出数据';
+            const workbook = getWorkbook();
+            XLSX.writeFile(workbook, `${fileName}.csv`);
+            setStatus(`已导出: ${fileName}.csv`, true);
+        };
+
+        // 窗口大小变化时重新渲染
+        window.addEventListener('resize', function () {
+            spreadsheet.reRender();
+        });
+    </script>
+</body>
+
+</html>
+
