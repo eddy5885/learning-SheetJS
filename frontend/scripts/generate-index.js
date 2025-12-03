@@ -27,7 +27,7 @@ const htmlContent = `<!DOCTYPE html>
     <h1>文件列表</h1>
     <p>当前目录下共有 ${files.length} 个文件：</p>
     <ul>
-        ${files.map(file => `<li><a href="${encodeURI(file)}" download>${file}</a></li>`).join('\n            ')}
+        ${files.map(file => `<li><a href="${encodeURI(file)}">${file}</a></li>`).join('\n            ')}
     </ul>
     <p><small>页面生成于 ${new Date().toLocaleString()}</small></p>
 </body>
